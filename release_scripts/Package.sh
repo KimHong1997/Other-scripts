@@ -22,7 +22,7 @@
 # Path to required applications
 # -----------------------------
 #
-SVN=/usr/bin/svn
+VCS=/usr/bin/git
 P7Z=/usr/bin/7za
 RSYNC=/usr/bin/rsync
 CURL=/usr/bin/curl
@@ -30,29 +30,29 @@ CURL=/usr/bin/curl
 # Path to temp directory
 # ----------------------
 #
-# TMPDIR = the target temp directory in which you want to get the packages
+# TMPDIR = the local target temp directory in which you want to put the packages
 TMPDIR=/tmp
+REMOTEPATH="/Releases/Latest\ stable\ release"
 #
 # Texts
 # -----
 # VERSION = The default name used for the package file name
 #           You will be asked to confirm this one later anyway
-VERSION="187plus"
-VERSIONTXT="LimeSurvey 1.87+"
+VERSION="191plus"
+VERSIONTXT="LimeSurvey 1.91+"
 #
 # Upload setup
 # ------------
 #
-# REPOSITORY_ROOT = The SVN repository root for limesurvey
-REMOTEPATH="/home/frs/project/l/li/limesurvey/1._LimeSurvey_stable/1.87+/"
-# REPOSITORY_ROOT = The SVN repository root for limesurvey
-REPOSITORY_ROOT=/path/to/mysvn-directory/limesurvey
+# REPOSITORY_ROOT = The VCS repository root for limesurvey
+REPOSITORY_ROOT=/home/c_schmitz/limesurvey/limesurveyrepo
 # AUTOUPLOAD = YES or NO, if set to NO you'll be prompted if you want
 #              to upload the packages to Sf.net or not, and if yes, you'll be
-#              prompted for your Sf.net username
-# SFUSER = used if AUTOUPLOAD is set to YES, won't ask you your Sf.net username
+#              prompted for your SFTP username
+# UPLOADUSER = used if AUTOUPLOAD is set to YES, won't ask you your SFTP username
 AUTOUPLOAD="NO"
-SFUSER=mysfloginname
+UPLOADUSER=""
+UPLOADPORT=""
 #
 # Twitter Feature
 # ---------------
@@ -64,8 +64,6 @@ SFUSER=mysfloginname
 # TWITTERPASS = The twitter password (if empty the script will ask for it)
 AUTOTWITT="NO"
 TWEETMSG=" released - update now: http://www.limesurvey.org/en/download"
-TWITTERUSER="limesurvey"
-TWITTERPASS=""
 
 ####################################################################
 #################Don't modify below#################################
@@ -75,20 +73,19 @@ export LANG=en_US.UTF-8
 CURRENTPATH=`pwd`
 echo "Updating the repository first"
 cd $REPOSITORY_ROOT
-$SVN update -q
+$VCS pull
 if [ $? -ne 0 ]
 then
-	echo "ERROR: SVN update failed"
+	echo "ERROR: VCS update failed"
 	exit 1
 fi
 echo 
-
 # Let's get the buildnumber
-BUILDNUM=`$SVN info | grep "Revision:" | awk '{print $2}'`
+BUILDNUM=`date +%y%m%d`
 DATESTR=`date +%Y%m%d`
 
 
-echo "Version to build will have builnumber $BUILDNUM"
+echo "Version to build will have buildnumber $BUILDNUM"
 echo -n "Version Name [hit enter for '$VERSION']:"
 read versionname
 if [ ! -z $versionname ]
@@ -110,20 +107,20 @@ fi
 rm -Rf $TMPDIR/limesurvey
 rm -Rf $TMPDIR/limesurveyUpload
 rm -f $TMPDIR/limesurvey*
-cd $REPOSITORY_ROOT/source
+cd $REPOSITORY_ROOT
 
-echo -n "Exporting sources to $TMPDIR : "
-svn export -q limesurvey /tmp/limesurvey
+echo -n "Copying sources to $TMPDIR : "
+rsync -r --exclude .git $REPOSITORY_ROOT/ $TMPDIR/limesurvey/
 if [ $? -ne 0 ]
 then
-	echo "ERROR: SVN export failed"
+	echo "ERROR: Copying sources to $TMPDIR/limesurvey/ failed"
 	exit 2
 fi
 echo "OK"
 
 #Modify build version in common.php
 echo -n "Updating buildnumber in version.php : "
-cd /tmp
+cd $TMPDIR
 sed -i "s/\$buildnumber = '[0-9]*';/\$buildnumber = '$BUILDNUM';/" limesurvey/version.php
 if [ $? -ne 0 ]
 then
@@ -173,14 +170,14 @@ echo
 
 if [ $AUTOUPLOAD != "YES" ]
 then
-	echo -n "Do you want to upload to Sf.net [N]:"
+	echo -n "Do you want to upload to limesurvey.org [N]:"
 	read goupload
 	if [ "$goupload" != "Y" -a "$goupload" != "y" ]
 	then
 		echo "Packages are ready but were not uploaded"	
 		exit 3
 	fi
-	echo -n "Please enter your Sf.net login:"
+	echo -n "Please enter your limesurvey.org login:"
 	read SFUSER
 fi
 
@@ -190,9 +187,9 @@ cp $TMPDIR/limesurvey/docs/*release_notes.txt $TMPDIR/limesurveyUpload/README
 
 #$RSYNC -avP -e ssh $TMPDIR/$PKGNAME.* $SFUSER@frs.sourceforge.net:uploads/
 #$RSYNC --delete --delete-after -avP -r -e ssh $TMPDIR/limesurvey/docs/release_notes_and_upgrade_instructions.txt $TMPDIR/$PKGNAME.* $SFUSER,limesurvey@frs.sourceforge.net:$REMOTEPATH
-
 echo "Synching /tmp/limesurveyUpload directory to release directory. This will remove old files"
-$RSYNC --delete --delete-after -avP -r -e ssh $TMPDIR/limesurveyUpload/  $SFUSER,limesurvey@frs.sourceforge.net:$REMOTEPATH
+echo "$RSYNC --delete --delete-after -avP -r -e ssh $TMPDIR/limesurveyUpload/  rsync://$UPLOADUSER@limesurvey.org::$UPLOADPORT/$REMOTEPATH"
+exit
 
 if [ $? -ne 0 ]
 then

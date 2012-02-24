@@ -1,6 +1,0 @@
-<section name="prerequisite" title="Prérequis">
-  <element name="implementationlanguage" title="Langage d'implémentation">
-    <desc>Detaillez ici le(s) langage(s) d'implémentation et sa(ses) version(s)</desc>
-    <comment></comment>
-  </element>
-</section>

@@ -1,62 +1,63 @@
-#!/bin/sh
-# 
+#!/bin/bash
+#
 #---------------------------------------------------------------
 # This is a dirty and quick script to automate changelog
-# generation from XML SVN logs
+# generation from Git repository logs
 # This will output a txt file wich can be added to the relevant
 # section in the release notes.
 #----------------------------------------------------------------
 #
 # Configuration section
 #
+# History
+# * Created by Thibaul le Meur
+# * 24 Feb 2012 Adjusted for Git repository (c_schmitz)
 export LANG=en_US.UTF-8
-# REPOSITORY_ROOT = SVN root of your local limesurvey repository
-#REPOSITORY_ROOT=/path/to/mysvn-directory/limesurvey
-REPOSITORY_ROOT=../../..
+# REPOSITORY_ROOT = root of your local limesurvey repository
+#REPOSITORY_ROOT=/path/to/limesurvey-repo
+REPOSITORY_ROOT=/home/c_schmitz/limesurvey/limesurveyrepo
 
 # TMPDIR is the directory where temporary and output files will be written
 TMPDIR=`pwd`
 
-# PATH to some important binaries
-SVN=/usr/bin/svn
-PHP=/usr/bin/php
+# PATH to VCS binary (e.g. Git)
+VCS=/usr/bin/git
 
 # Let's update the repository first
 echo "Updating SVN local repository"
 CURRENTPATH=`pwd`
 cd $REPOSITORY_ROOT
-$SVN update -q
+$VCS pull --all
 if [ $? -ne 0 ]
 then
-        echo "ERROR: SVN update failed"
+        echo "ERROR: Pulling  failed"
         exit 1
 fi
-cd $CURRENTPATH
 
+echo -n "Which branch do you want to release [master]: "
+read BRANCH
+if [$BRANCH = ``]
+then
+    BRANCH="master"
+fi
+
+$VCS checkout $BRANCH -f
+git rev-parse HEAD
 # Let's get the buildnumber
-CURRENTBUILDNUM=`$SVN info | grep "Revision:" | awk '{print $2}'`
-NEXTBULDNUM=`expr $CURRENTBUILDNUM + 1`
+CURRENTBUILDID=`$VCS rev-parse HEAD`
+NEXTREVID=`date +"%y%m%d"`
 
-echo "Current Repository build is $CURRENTBUILDNUM,"
-echo "  Let's assume you're preparing the build $NEXTBULDNUM release"
+echo "Current repository head is $CURRENTBUILDID,"
+echo "  Let's assume you're preparing the build $NEXTREVID release"
 
-echo -n "Please enter the last release buildnumber: "
-read OLDBUILD
-
-
-echo "Getting SVN log in XML format from $OLDBUILD to $NEXTBULDNUM"
-pwd
-cd $REPOSITORY_ROOT/source/limesurvey
-$SVN log --xml -r $OLDBUILD:$CURRENTBUILDNUM > $TMPDIR/SVNlog-LS-$OLDBUILD-$NEXTBULDNUM.xml
-cd $CURRENTPATH
-
-echo "Parsing SVN log in XML format ==> Changelog-LS-$OLDBUILD-$NEXTBULDNUM.txt"
-$PHP $CURRENTPATH/ParseSVNLogs.php $TMPDIR/SVNlog-LS-$OLDBUILD-$NEXTBULDNUM.xml $TMPDIR/Changelog-LS-$OLDBUILD-$NEXTBULDNUM.txt
-
-rm $TMPDIR/SVNlog-LS-$OLDBUILD-$NEXTBULDNUM.xml
+echo -n "Please enter the last release UUID: "
+read OLDID
+OLDID="${OLDID:0:10}"
+echo "Getting log from $OLDID to HEAD for branch $BRANCH"
+$VCS log --pretty=format:"%s (%an)" --no-merges --abbrev-commit $OLDID..HEAD| perl -pe ' if ($_=~ /^Fix/i) { $_ = "-".$_} elsif ($_ =~ /^Update/i) {$_ = "#".$_} elsif ($_ =~ /^New feature/i) {$_ = "+".$_} elsif ($_ =~ /^Dev/i){$_ = ""} else {$_ = "????".$_}' | sort -u > $CURRENTPATH/log-LS-$OLDID-$NEXTREVID.txt
 
 echo "Now you have to:"
-echo " * review the generated changelog in $TMPDIR/Changelog-LS-$OLDBUILD-$NEXTBULDNUM.txt"
-echo " * then add it to the relevant section in the release-notes"
-echo " * commit the new release notes"
-echo " * and run the PackageLS.sh script to build and upload the packages to Sf.net"
+echo " * Review the generated changelog in $CURRENTPATH/Changelog-LS-$OLDID-$NEXTREVID.txt"
+echo " * Add it to the relevant section in /docs/release_notes.txt"
+echo " * Commit and push the new release_notes.txt"
+echo " * Run the Package.sh script to build and upload the packages to Sf.net"
