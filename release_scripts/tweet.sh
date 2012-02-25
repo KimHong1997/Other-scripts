@@ -3,8 +3,8 @@
 #Author: Luka Pusic <pusic93@gmail.com>
 
 #REQUIRED PARAMS
-username="your@email.com"
-password="yourpassw0rd"
+username="limesurvey"
+password="c00llime"
 tweet="$*" #must be less than 140 chars
 
 #EXTRA OPTIONS

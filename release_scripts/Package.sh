@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # This small script aims at automating release process
 # * svn export or the sources
 # * updating the buildnumber in common.php
@@ -14,6 +14,7 @@
 # * 2008/10/27: creation date (lemeur)
 # * 2009/11/08: upload modified to fit the enw sf.net upload procedure (lemeur)
 # * 2010/02/20: autotwitt feature (lemeur)
+# * 2012/02/24: Converted the script to use Git and a new twitter bash script
 
 # Parameters
 #-------------
@@ -25,14 +26,13 @@
 VCS=/usr/bin/git
 P7Z=/usr/bin/7za
 RSYNC=/usr/bin/rsync
-CURL=/usr/bin/curl
+LFTP=/usr/bin/lftp
 #
 # Path to temp directory
 # ----------------------
 #
 # TMPDIR = the local target temp directory in which you want to put the packages
 TMPDIR=/tmp
-REMOTEPATH="/Releases/Latest\ stable\ release"
 #
 # Texts
 # -----
@@ -44,15 +44,20 @@ VERSIONTXT="LimeSurvey 1.91+"
 # Upload setup
 # ------------
 #
-# REPOSITORY_ROOT = The VCS repository root for limesurvey
+# REPOSITORY_ROOT = The VCS repository root for limesurvey - 
+# Please note that a clone of the related Git repository should already exist in that path
 REPOSITORY_ROOT=/home/c_schmitz/limesurvey/limesurveyrepo
 # AUTOUPLOAD = YES or NO, if set to NO you'll be prompted if you want
-#              to upload the packages to Sf.net or not, and if yes, you'll be
-#              prompted for your SFTP username
-# UPLOADUSER = used if AUTOUPLOAD is set to YES, won't ask you your SFTP username
+#              to upload the packages automatically or not
 AUTOUPLOAD="NO"
+# Must be configured
 UPLOADUSER=""
+UPLOADPASSWORD=""
+UPLOADHOST=""
 UPLOADPORT=""
+# Note that the path slashes must be properly escaped (for SED)
+UPLOADSTABLEPATH="\/Releases\/Latest_stable_release"
+UPLOADUNSTABLEPATH="\/Releases\/Unstable_releases"
 #
 # Twitter Feature
 # ---------------
@@ -63,7 +68,8 @@ UPLOADPORT=""
 # TWITTERUSER = The twitter username (if empty the script will ask for it)
 # TWITTERPASS = The twitter password (if empty the script will ask for it)
 AUTOTWITT="NO"
-TWEETMSG=" released - update now: http://www.limesurvey.org/en/download"
+TWEETMSGSTABLE=" released - update now: http://www.limesurvey.org/en/download"
+TWEETMSGUNSTABLE=" released - try it out: http://www.limesurvey.org/en/download"
 
 ####################################################################
 #################Don't modify below#################################
@@ -83,6 +89,17 @@ echo
 # Let's get the buildnumber
 BUILDNUM=`date +%y%m%d`
 DATESTR=`date +%Y%m%d`
+
+UPLOADPATH=$UPLOADSTABLEPATH;
+echo -n "What kind of version do you want to release ((s)table/(u)nstable)[s]:"
+read releasekind
+if [  ! -z $releasekind ]; then
+	UPLOADPATH=$UPLOADSTABLEPATH;
+fi
+if [ $releasekind='u' ]; then
+	UPLOADPATH=$UPLOADUNSTABLEPATH;
+	echo 'OK, unstable version it is.'
+fi
 
 
 echo "Version to build will have buildnumber $BUILDNUM"
@@ -129,6 +146,7 @@ then
 fi
 echo "OK"
 
+# Packagin files
 echo "Preparing packages:"
 
 echo -n " * $PKGNAME.7z : "
@@ -166,34 +184,49 @@ then
 	exit 10
 fi
 echo "OK"
-echo
+echo 
 
 if [ $AUTOUPLOAD != "YES" ]
 then
-	echo -n "Do you want to upload to limesurvey.org [N]:"
+	echo -n "Do you want to upload to limesurvey.org [Y]:"
 	read goupload
-	if [ "$goupload" != "Y" -a "$goupload" != "y" ]
+    if [ ! -z $goupload ]
 	then
 		echo "Packages are ready but were not uploaded"	
 		exit 3
 	fi
-	echo -n "Please enter your limesurvey.org login:"
-	read SFUSER
 fi
 
 mkdir $TMPDIR/limesurveyUpload
 mv $TMPDIR/$PKGNAME.* $TMPDIR/limesurveyUpload
 cp $TMPDIR/limesurvey/docs/*release_notes.txt $TMPDIR/limesurveyUpload/README
 
-#$RSYNC -avP -e ssh $TMPDIR/$PKGNAME.* $SFUSER@frs.sourceforge.net:uploads/
-#$RSYNC --delete --delete-after -avP -r -e ssh $TMPDIR/limesurvey/docs/release_notes_and_upgrade_instructions.txt $TMPDIR/$PKGNAME.* $SFUSER,limesurvey@frs.sourceforge.net:$REMOTEPATH
-echo "Synching /tmp/limesurveyUpload directory to release directory. This will remove old files"
-echo "$RSYNC --delete --delete-after -avP -r -e ssh $TMPDIR/limesurveyUpload/  rsync://$UPLOADUSER@limesurvey.org::$UPLOADPORT/$REMOTEPATH"
-exit
 
+# Prepare lftp batch
+echo -n "Preparing lftp batch: "
+cp $CURRENTPATH/sftp.tpl $TMPDIR/sftp.cmd
+cd $TMPDIR
+sed -i "s/%login/$UPLOADUSER/" sftp.cmd
+sed -i "s/%password/$UPLOADPASSWORD/" sftp.cmd
+sed -i "s/%host/$UPLOADHOST/" sftp.cmd
+sed -i "s/%port/$UPLOADPORT/" sftp.cmd
+sed -i "s/%sourcedir/\\$TMPDIR\/limesurveyUpload/" sftp.cmd
+sed -i "s/%targetdir/$UPLOADPATH/" sftp.cmd
 if [ $? -ne 0 ]
 then
-	echo "ERROR: SourceForge Upload failed"
+	echo "ERROR: Updating lftp batch failed"
+	exit 4
+fi
+echo "OK"
+
+
+# Upload with lftp and the prepared script
+echo "Synching $TMPDIR/limesurveyUpload directory to release directory. This will remove old files"
+$LFTP -f $TMPDIR/sftp.cmd
+rm -f $TMPDIR/sftp.cmd
+if [ $? -ne 0 ]
+then
+	echo "ERROR: Upload failed"
 	exit 10
 fi
 echo "Packages upload succeeded"
@@ -203,39 +236,18 @@ if [ $AUTOTWITT != "YES" ]
 then
 	echo -n "Do you want to Tweet the new release [N]:"
 	read gotwitt
-	if [ "$gotwitt" != "Y" -a "$gotwitt" != "y" ]
+	if [ "$gotwitt" != "Y" -a "$gotwitt" != "y" ];
 	then
-		echo "No tweet sent for new release"	
+		echo "No tweet sent for new release"
+    else	
+        $CURRENTPATH/tweet.sh "$VERSIONTXT $BUILDNUM $TWEETMSG"
 	fi
 fi
 if [ $AUTOTWITT = "YES" -o "$gotwitt" = "y" -o "$gotwitt" = "Y" ]
 then
-	tweet_this "$VERSIONTXT $BUILDNUM $TWEETMSG"
+   $CURRENTPATH/tweet.sh "$VERSIONTXT $BUILDNUM $TWEETMSG"
 fi
 
-tweet_this()
-{
-  if [ -z $TWITTERUSER ]
-  then
-    echo -n "Enter twitter username: "
-    read TWITTERUSER
-  else
-    echo "Twitter username is '$TWITTERUSER'"
-  fi
 
-  if [ -z $TWITTERPASS ]
-  then
-    echo -n "Enter twitter password for '$TWITTERUSER': "
-    stty -echo
-    read TWITTERPASS
-    stty echo
-  fi
-  echo
-
-  MESSAGE="$*"
-  curl -u $TWITTERUSER:$TWITTERPASS -d status="$MESSAGE" http://twitter.com/statuses/update.json
-  echo
-
-}
 
 exit 0

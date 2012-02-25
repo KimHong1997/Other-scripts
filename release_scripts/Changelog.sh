@@ -9,9 +9,6 @@
 #
 # Configuration section
 #
-# History
-# * Created by Thibaul le Meur
-# * 24 Feb 2012 Adjusted for Git repository (c_schmitz)
 export LANG=en_US.UTF-8
 # REPOSITORY_ROOT = root of your local limesurvey repository
 #REPOSITORY_ROOT=/path/to/limesurvey-repo
@@ -20,8 +17,9 @@ REPOSITORY_ROOT=/home/c_schmitz/limesurvey/limesurveyrepo
 # TMPDIR is the directory where temporary and output files will be written
 TMPDIR=`pwd`
 
-# PATH to VCS binary (e.g. Git)
+# PATH to some important binaries
 VCS=/usr/bin/git
+PHP=/usr/bin/php
 
 # Let's update the repository first
 echo "Updating SVN local repository"
@@ -36,7 +34,7 @@ fi
 
 echo -n "Which branch do you want to release [master]: "
 read BRANCH
-if [$BRANCH = ``]
+if [$BRANCH = '']
 then
     BRANCH="master"
 fi
@@ -47,14 +45,14 @@ git rev-parse HEAD
 CURRENTBUILDID=`$VCS rev-parse HEAD`
 NEXTREVID=`date +"%y%m%d"`
 
-echo "Current repository head is $CURRENTBUILDID,"
+echo "Current repository head is SHA $CURRENTBUILDID,"
 echo "  Let's assume you're preparing the build $NEXTREVID release"
 
-echo -n "Please enter the last release UUID: "
+echo -n "Please enter the last release SHA: "
 read OLDID
-OLDID="${OLDID:0:10}"
-echo "Getting log from $OLDID to HEAD for branch $BRANCH"
-$VCS log --pretty=format:"%s (%an)" --no-merges --abbrev-commit $OLDID..HEAD| perl -pe ' if ($_=~ /^Fix/i) { $_ = "-".$_} elsif ($_ =~ /^Update/i) {$_ = "#".$_} elsif ($_ =~ /^New feature/i) {$_ = "+".$_} elsif ($_ =~ /^Dev/i){$_ = ""} else {$_ = "????".$_}' | sort -u > $CURRENTPATH/log-LS-$OLDID-$NEXTREVID.txt
+SOLDID="${OLDID:0:10}"
+echo "Getting log from $SOLDID to HEAD for branch $BRANCH"
+$VCS log --pretty=format:"%s (%an)" --no-merges $OLDID..HEAD| perl -pe ' if ($_=~ /^Fix/i) { $_ = "-".$_} elsif ($_ =~ /^Update/i) {$_ = "#".$_} elsif ($_ =~ /^New feature/i) {$_ = "+".$_} elsif ($_ =~ /^Dev/i){$_ = ""} else {$_ = "????".$_}' | sort -u > $CURRENTPATH/log-LS-$SOLDID-$NEXTREVID.txt
 
 echo "Now you have to:"
 echo " * Review the generated changelog in $CURRENTPATH/Changelog-LS-$OLDID-$NEXTREVID.txt"
