@@ -1,6 +1,6 @@
 ;
 ; LimeSurvey InnoSetup Script on XAMPP
-; Copyright (C) 2007 The LimeSurvey Project Team / Shubham Ssachdeva
+; Copyright (C) 2007 The LimeSurvey Project Team / Shubham Sachdeva
 ; All rights reserved.
 ; License: GNU/GPL License v2 or later
 ; LimeSurvey is free software. This version may have been modified pursuant
