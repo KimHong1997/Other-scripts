@@ -1,0 +1,16 @@
+Congratulations! 
+
+LimeSurvey has been installed with XAMPP on your system. Clicking on Next will start the Apache and Mysql services on your system. It will also create a dummy database named 'limesurvey' for the use of LimeSurvey as well.
+
+Details about LimeSurvey installation :
+
+Survey URL : http://localhost
+Admin URL : http://localhost/admin/admin.php
+Default admin username : 'admin'
+Deafult admin password : 'password'
+
+Details about Mysql installed :
+
+User: root
+Password:
+(means no password!)

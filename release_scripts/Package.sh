@@ -38,8 +38,8 @@ TMPDIR=/tmp
 # -----
 # VERSION = The default name used for the package file name
 #           You will be asked to confirm this one later anyway
-VERSION="191plus"
-VERSIONTXT="LimeSurvey 1.91+"
+VERSION="192plus"
+VERSIONTXT="LimeSurvey 1.92+"
 #
 # Upload setup
 # ------------
@@ -58,6 +58,13 @@ UPLOADPORT=""
 # Note that the path slashes must be properly escaped (for SED)
 UPLOADSTABLEPATH="\/Releases\/Latest_stable_release"
 UPLOADUNSTABLEPATH="\/Releases\/Unstable_releases"
+
+
+INNOSETUPBASEPATH="Z:\home\loginname\limesurvey\innosetup"
+INNOSETUPLSTEMPPATH="Z:\tmp\limesurvey"
+INNOSETUPTEMPPATH="Z:\tmp"
+
+#
 #
 # Twitter Feature
 # ---------------
@@ -65,8 +72,6 @@ UPLOADUNSTABLEPATH="\/Releases\/Unstable_releases"
 # AUTOTWITT = YES or NO, if set to NO you'll be prompted if you want
 #             to automatically send a tweet for the new release
 # TWEETMSG = The twitter message to append to the full text release name
-# TWITTERUSER = The twitter username (if empty the script will ask for it)
-# TWITTERPASS = The twitter password (if empty the script will ask for it)
 AUTOTWITT="NO"
 TWEETMSGSTABLE=" released - update now: http://www.limesurvey.org/en/download"
 TWEETMSGUNSTABLE=" released - try it out: http://www.limesurvey.org/en/download"
@@ -91,25 +96,38 @@ BUILDNUM=`date +%y%m%d`
 DATESTR=`date +%Y%m%d`
 
 UPLOADPATH=$UPLOADSTABLEPATH;
+TWEETMSG=$TWEETMSGSTABLE;
+
 echo -n "What kind of version do you want to release ((s)table/(u)nstable)[s]:"
 read releasekind
-if [  ! -z $releasekind ]; then
+if [  -z $releasekind ]; then
 	UPLOADPATH=$UPLOADSTABLEPATH;
+        TWEETMSG=$TWEETMSGSTABLE;
+        echo 'OK, stable version it is.'
 fi
-if [ $releasekind='u' ]; then
+if [ "$releasekind" == "u" ]; then
 	UPLOADPATH=$UPLOADUNSTABLEPATH;
+        TWEETMSG=$TWEETMSGUNSTABLE;
 	echo 'OK, unstable version it is.'
 fi
 
 
-echo "Version to build will have buildnumber $BUILDNUM"
+echo -n "Build number [hit enter for '$BUILDNUM']:"
+read buildnumber
+if [ ! -z $buildnumber ]
+then
+        BUILDNUM=$buildnumber
+fi
+
+echo
+
 echo -n "Version Name [hit enter for '$VERSION']:"
 read versionname
 if [ ! -z $versionname ]
 then
 	VERSION=$versionname
 fi
-PKGNAME="limesurvey$VERSION-build$BUILDNUM-$DATESTR"
+PKGNAME="limesurvey$VERSION-build$BUILDNUM"
 echo
 
 # export sources
@@ -184,7 +202,21 @@ then
 	exit 10
 fi
 echo "OK"
+
+echo -n " * $PKGNAME-on-xampp-win32-setup.exe : "
+cd $CURRENTPATH/innosetup
+# The following line needs to be configured separately - wine assumes Z: as virtual drive
+wine ISCC "/dBASEPATH=$INNOSETUPBASEPATH" "/dLSSOURCEPATH=$INNOSETUPLSTEMPPATH" "$INNOSETUPBASEPATH\ls_1x_on_xampp.iss" "/o$INNOSETUPTEMPPATH" "/f$PKGNAME-on-xampp-win32-setup" /q
+if [ $? -ne 0 ]
+then
+	echo "ERROR: Preparing LimeSurvey-on-xampp package failed"
+	exit 10
+fi
+echo "OK"
 echo 
+
+
+
 
 if [ $AUTOUPLOAD != "YES" ]
 then
@@ -198,8 +230,10 @@ then
 fi
 
 mkdir $TMPDIR/limesurveyUpload
-mv $TMPDIR/$PKGNAME.* $TMPDIR/limesurveyUpload
+mv $TMPDIR/$PKGNAME*.* $TMPDIR/limesurveyUpload
 cp $TMPDIR/limesurvey/docs/*release_notes.txt $TMPDIR/limesurveyUpload/README
+
+
 
 
 # Prepare lftp batch
@@ -239,15 +273,15 @@ then
 	if [ "$gotwitt" != "Y" -a "$gotwitt" != "y" ];
 	then
 		echo "No tweet sent for new release"
-    else	
-        $CURRENTPATH/tweet.sh "$VERSIONTXT $BUILDNUM $TWEETMSG"
+    else
+        $CURRENTPATH/tweet.sh "$VERSIONTXT Build $BUILDNUM $TWEETMSG"
 	fi
-fi
+else
 if [ $AUTOTWITT = "YES" -o "$gotwitt" = "y" -o "$gotwitt" = "Y" ]
 then
-   $CURRENTPATH/tweet.sh "$VERSIONTXT $BUILDNUM $TWEETMSG"
+   $CURRENTPATH/tweet.sh "$VERSIONTXT Build $BUILDNUM $TWEETMSG"
 fi
-
+fi
 
 
 exit 0

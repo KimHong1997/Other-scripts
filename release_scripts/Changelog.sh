@@ -12,7 +12,7 @@
 export LANG=en_US.UTF-8
 # REPOSITORY_ROOT = root of your local limesurvey repository
 #REPOSITORY_ROOT=/path/to/limesurvey-repo
-REPOSITORY_ROOT=/home/c_schmitz/limesurvey/limesurveyrepo
+REPOSITORY_ROOT=/home/loginname/limesurvey/limesurveyrepo
 
 # TMPDIR is the directory where temporary and output files will be written
 TMPDIR=`pwd`
@@ -52,7 +52,7 @@ echo -n "Please enter the last release SHA: "
 read OLDID
 SOLDID="${OLDID:0:10}"
 echo "Getting log from $SOLDID to HEAD for branch $BRANCH"
-$VCS log --pretty=format:"%s (%an)" --no-merges $OLDID..HEAD| perl -pe ' if ($_=~ /^Fix/i) { $_ = "-".$_} elsif ($_ =~ /^Update/i) {$_ = "#".$_} elsif ($_ =~ /^New feature/i) {$_ = "+".$_} elsif ($_ =~ /^Dev/i){$_ = ""} else {$_ = "????".$_}' | sort -u > $CURRENTPATH/log-LS-$SOLDID-$NEXTREVID.txt
+$VCS log --pretty=format:"%s (%an)" --no-merges $OLDID..HEAD| perl -pe ' if ($_=~ /^Fix/i) { $_ = "-".$_} elsif ($_ =~ /^Update/i) {$_ = "#".$_} elsif ($_ =~ /^New feature/i) {$_ = "+".$_} elsif ($_ =~ /^Dev/i){$_ = ""} else {$_ = "????".$_}' | sort -u > $CURRENTPATH/log/log-LS-$SOLDID-$NEXTREVID.txt
 
 echo "Now you have to:"
 echo " * Review the generated changelog in $CURRENTPATH/Changelog-LS-$OLDID-$NEXTREVID.txt"
