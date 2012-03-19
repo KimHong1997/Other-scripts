@@ -73,8 +73,8 @@ INNOSETUPTEMPPATH="Z:\tmp"
 #             to automatically send a tweet for the new release
 # TWEETMSG = The twitter message to append to the full text release name
 AUTOTWITT="NO"
-TWEETMSGSTABLE=" released - update now: http://www.limesurvey.org/en/download"
-TWEETMSGUNSTABLE=" released - try it out: http://www.limesurvey.org/en/download"
+TWEETMSGSTABLE="released - update now: http://www.limesurvey.org/en/download"
+TWEETMSGUNSTABLE="released - try it out: http://www.limesurvey.org/en/download"
 
 ####################################################################
 #################Don't modify below#################################
