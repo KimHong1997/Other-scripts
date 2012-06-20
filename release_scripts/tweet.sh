@@ -31,16 +31,16 @@ echo "[+] Submitting the login form..." && sleep $sleeptime
 loginpage=`curl -s -b "cookie.txt" -c "cookie.txt" -L --sslv3 -A "$uagent" -d "authenticity_token=$token&username=$username&password=$password" "https://mobile.twitter.com/session"`
 
 #HOME PAGE
-echo "[+] Getting your twitter home page..." && sleep $sleeptime
-homepage=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" "http://mobile.twitter.com/"`
+echo "[+] Getting your twitter tweet composition page..." && sleep $sleeptime
+homepage=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" "https://mobile.twitter.com/compose/tweet"`
 
 #TWEET
 echo "[+] Posting a new tweet: ${tweet}..." && sleep $sleeptime
 tweettoken=`echo "$homepage" | grep "authenticity_token" | sed -e 's/.*value="//' | sed -e 's/" \/>.*//' | tail -n 1`
-update=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" -d "authenticity_token=$tweettoken&tweet[text]=$tweet&tweet[display_coordinates]=false" "http://mobile.twitter.com/"`
+update=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" -d "authenticity_token=$tweettoken&tweet[text]=$tweet&tweet[display_coordinates]=false&commit=Tweet" "https://mobile.twitter.com/"`
 
 #LOGOUT
 echo "[+] Logging out..."
-logout=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" "http://mobile.twitter.com/session/destroy"`
+logout=`curl -s -b "cookie.txt" -c "cookie.txt" -L -A "$uagent" "https://mobile.twitter.com/session/destroy"`
 
 rm "cookie.txt"
